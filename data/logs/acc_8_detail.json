@@ -1,0 +1,107 @@
+{
+  "first5_mean": 82.8,
+  "mid5_mean": 66.2,
+  "last5_mean": 79.8,
+  "pairs": [
+    {
+      "round": 1,
+      "budget": 0.68,
+      "len": 70
+    },
+    {
+      "round": 2,
+      "budget": 0.66,
+      "len": 96
+    },
+    {
+      "round": 3,
+      "budget": 0.64,
+      "len": 84
+    },
+    {
+      "round": 4,
+      "budget": 0.62,
+      "len": 112
+    },
+    {
+      "round": 5,
+      "budget": 0.6,
+      "len": 52
+    },
+    {
+      "round": 6,
+      "budget": 0.59,
+      "len": 82
+    },
+    {
+      "round": 7,
+      "budget": 0.57,
+      "len": 99
+    },
+    {
+      "round": 8,
+      "budget": 0.55,
+      "len": 61
+    },
+    {
+      "round": 9,
+      "budget": 0.53,
+      "len": 13
+    },
+    {
+      "round": 10,
+      "budget": 0.51,
+      "len": 108
+    },
+    {
+      "round": 11,
+      "budget": 0.49,
+      "len": 66
+    },
+    {
+      "round": 12,
+      "budget": 0.480001,
+      "len": 83
+    },
+    {
+      "round": 13,
+      "budget": 0.460001,
+      "len": 110
+    },
+    {
+      "round": 14,
+      "budget": 0.440001,
+      "len": 44
+    },
+    {
+      "round": 15,
+      "budget": 0.420001,
+      "len": 63
+    },
+    {
+      "round": 16,
+      "budget": 0.400001,
+      "len": 69
+    },
+    {
+      "round": 17,
+      "budget": 0.380001,
+      "len": 56
+    },
+    {
+      "round": 18,
+      "budget": 0.360001,
+      "len": 63
+    },
+    {
+      "round": 19,
+      "budget": 0.340001,
+      "len": 118
+    },
+    {
+      "round": 20,
+      "budget": 0.330003,
+      "len": 93
+    }
+  ]
+}

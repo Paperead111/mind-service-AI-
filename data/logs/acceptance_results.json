@@ -1,0 +1,36 @@
+{
+  "8": {
+    "start_budget": 0.41,
+    "end_budget": 0.06,
+    "budget_decreased": true,
+    "pearson_budget_len": -0.1765
+  },
+  "13": {
+    "emotion_accuracy": 0.87,
+    "emotion_n": 100,
+    "triage_accuracy": 0.8333,
+    "triage_n": 42
+  },
+  "29": {
+    "rounds": 20,
+    "zero_conjunction": 1,
+    "material": "data\\logs\\acceptance_29_material.md"
+  },
+  "15": {
+    "sent_delta": 1,
+    "last_sent_trigger": "incubation",
+    "message_preview": "刚后台冒出个念头：要是现在开一个25分钟的专注块，只干一件事，打断先记下，你愿意",
+    "heartbeat_summary": {
+      "skipped": null,
+      "evaluated": 3,
+      "sent": 1,
+      "shadowed": 0,
+      "dropped_no_source": 0,
+      "deferred": 3
+    }
+  },
+  "16": {
+    "page_has_life_tab": true,
+    "life_log_endpoint_ok": true
+  }
+}
