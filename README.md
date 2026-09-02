@@ -1,4 +1,6 @@
 # mind-service（心智体 AI 服务）
+# 📬 联系邮箱：  cmlgbdsbc3z5t6@163.com 
+ 📧 点此发送邮件
 
 按《方案定稿.md》实现的单用户"心智体"服务。模型 = DeepSeek API 调用。
 
