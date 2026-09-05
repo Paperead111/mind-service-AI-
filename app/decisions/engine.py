@@ -256,16 +256,21 @@ class DecisionEngine:
         }
 
     def _gate_candidates(self, candidates: list[str], snap: dict) -> list[str]:
-        """R12′ 情感门控：valence<−0.5 删反问；arousal>0.8 删查证；fear>0.7 删技能；
-        清空回退 REPLY。返回被剪清单。"""
+        """R12′ 情感门控（分离版）：只看自身情绪 + 目标，不看用户情绪。
+
+        用户再激动也不剪她的候选；她自己状态不佳才剪。高优先目标活跃时
+        阈值放宽 0.1（值得为它撑一下）。清空回退 REPLY。"""
+        # 目标软化：有优先级 ≥5 的活跃目标 → 阈值放宽
+        goals = snap.get("goals") or []
+        shift = 0.1 if any((g.get("priority") or 0) >= 5 for g in goals) else 0.0
         removed: list[str] = []
-        if snap.get("valence", 0) < -0.5 and "counter_ask" in candidates:
+        if snap.get("valence", 0) < -0.5 + shift and "counter_ask" in candidates:
             candidates.remove("counter_ask")
             removed.append("counter_ask")
-        if snap.get("arousal", 0) > 0.8 and "lookup" in candidates:
+        if snap.get("arousal", 0) > 0.8 - shift and "lookup" in candidates:
             candidates.remove("lookup")
             removed.append("lookup")
-        if snap.get("fear", 0) > 0.7 and "skill" in candidates:
+        if snap.get("fear", 0) > 0.7 - shift and "skill" in candidates:
             candidates.remove("skill")
             removed.append("skill")
         if not candidates:
@@ -273,7 +278,8 @@ class DecisionEngine:
         if removed:
             log_event("affective_gate", removed=removed, valence=snap.get("valence"),
                       arousal=snap.get("arousal"), fear=snap.get("fear"),
-                      msg=f"情感门控剪枝：{removed}")
+                      goal_shift=shift,
+                      msg=f"情感门控剪枝（基于自身情绪）：{removed}")
         return removed
 
     def _damping_active(self) -> bool:

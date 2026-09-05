@@ -285,7 +285,8 @@ class DegradationEngine:
                 "SELECT * FROM emotion_state WHERE id=1").fetchone()
         snap = {k: row[k] for k in (
             "valence", "arousal", "dominance", "joy", "sadness", "anger",
-            "fear", "surprise", "disgust", "anticipation", "trust", "dominant")}
+            "fear", "surprise", "disgust", "anticipation", "trust", "dominant",
+            "user_perceived_valence", "user_perceived_arousal")}
         set_setting("pre_deg_emotion", json.dumps(snap, ensure_ascii=False), self.db)
 
     def restore_emotion_if_pending(self) -> bool:

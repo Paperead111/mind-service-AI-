@@ -60,6 +60,24 @@ def needs_regeneration(judge: dict) -> bool:
     return judge["verdict"] == "rewrite" or judge["score"] < settings.fidelity_min_score
 
 
+NEGATIVE_TONE_WORDS = ("难过", "伤心", "崩溃", "绝望", "愤怒", "生气", "讨厌",
+                       "害怕", "烦死", "糟透了")
+
+
+def emotion_consistency_check(reply: str, self_state: dict) -> list[str]:
+    """情绪表达一致性（词库级、零 LLM）：自身明显积极却输出重度负面词 → 疑似跑偏。
+
+    只做「正向自身 + 负向表达」的单向检查，词表来自情绪系统关键词（数据），
+    不违反零静态输出。
+    """
+    if (self_state or {}).get("valence", 0) <= 0.3:
+        return []
+    hits = [w for w in NEGATIVE_TONE_WORDS if w in (reply or "")]
+    if len(hits) >= 2:
+        return [f"情绪基调不一致：自身积极却输出负面词 {('、'.join(hits))}"]
+    return []
+
+
 def correction_note(judge: dict) -> str:
     issues = "、".join((judge.get("issues") or [])[:3])
     return (f"[人格修正] 上一版被裁判判定偏离了她的声音（分 {judge['score']}/5"

@@ -156,7 +156,10 @@ class TestD(Base):
     def test_generate_thought_and_surface(self):
         set_setting("thought_count", "0", self.db)
         llm = FakeLLM(text="要是明天不下雨就好了。")
-        out = asyncio.run(maybe_generate_thought(0, self.db, llm=llm))
+        # 时间无关化：直接给静默态快照，避免夜间窗口随时间抖动
+        with unittest.mock.patch("app.life.state.GlobalCognitiveState") as GS:
+            GS.return_value.snapshot.return_value = snap(silent_ticks=12)
+            out = asyncio.run(maybe_generate_thought(0, self.db, llm=llm))
         self.assertTrue(out["generated"])
         th = latest_unsurfaced(self.db)
         self.assertEqual(th["content"], "要是明天不下雨就好了。")

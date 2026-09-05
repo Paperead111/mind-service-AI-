@@ -500,6 +500,127 @@ def persona_proposal_rollback(pid: int):
         </div>`).join('') : '<span class="k">暂无——她还没提出成长申请</span>';
       const b = await api('/v1/beliefs');''',
     },
+    {
+        "file": "app/skills/loader.py",
+        "summary": "技能匹配升级为 Claude Code 语义：no_model 技能不自动触发、按名字显式调用；get_skill 缓存兜底。",
+        "points": [
+            "list_skills 新增 no_model 字段（读 front matter disable-model-invocation）",
+            "match_skill：第一轮触发词匹配跳过 no_model；第二轮按「用<技能名>」或文本含技能名（≥4 字）显式点名",
+            "get_skill 在缓存未热身时自动扫描（此前单独调用工具会找不到技能）",
+        ],
+        "before": '''def match_skill(user_text: str) -> dict | None:
+    """触发词匹配：命中返回技能定义，未命中 None。"""
+    for s in list_skills():
+        for t in s["triggers"]:
+            if t and t in user_text:
+                return s
+    return None''',
+        "after": '''def match_skill(user_text: str) -> dict | None:
+    """触发词匹配（Claude Code 语义）：no_model 技能不自动触发，只按名字显式调用。
+
+    1. 触发词命中（no_model 技能跳过）
+    2. 显式点名：「用<技能名>」或用户文本包含技能名（≥4 字名）
+    """
+    for s in list_skills():
+        if s.get("no_model"):
+            continue
+        for t in s["triggers"]:
+            if t and t in user_text:
+                return s
+    for s in list_skills():
+        name = s["name"]
+        if name and (f"用{name}" in user_text or f"用 {name}" in user_text
+                     or (len(name) >= 4 and name in user_text)):
+            return s
+    return None''',
+    },
+    {
+        "file": "app/api.py（技能安装端点）",
+        "summary": "新增 /v1/skills/install 与 /v1/skills/validate：安装/校验 Claude Code 格式技能。",
+        "points": [
+            "install：校验→转换→安装→审计；重名 409（force 覆盖）",
+            "validate：只预览转换结果，不落盘",
+        ],
+        "before": '''@router.post("/skills/reload")
+def skills_reload():
+    from app.skills.loader import list_skills as _ls
+    return {"skills": len(_ls(reload=True))}''',
+        "after": '''@router.post("/skills/reload")
+def skills_reload():
+    from app.skills.loader import list_skills as _ls
+    return {"skills": len(_ls(reload=True))}
+
+
+class SkillInstallReq(BaseModel):
+    source_path: str = Field(..., min_length=1)
+    triggers: list[str] = []
+    force: bool = False
+
+
+@router.post("/skills/install")
+def skills_install(req: SkillInstallReq):
+    """安装 Claude Code 格式技能（SKILL.md + 可选脚本）到她的技能库。"""
+    from app.skills.installer import install_skill, parse_claude_skill
+    try:
+        parsed = parse_claude_skill(req.source_path)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    result = install_skill(req.source_path, triggers=req.triggers,
+                           force=req.force, database=db)
+    if not result.get("ok"):
+        raise HTTPException(status_code=409, detail=result.get("error"))
+    result["parsed"] = {"name": parsed["name"], "allowed_tools": parsed["allowed_tools"],
+                        "no_model": parsed["no_model"]}
+    return result
+
+
+@router.post("/skills/validate")
+def skills_validate(req: SkillInstallReq):
+    """只校验不安装：预览 CC 格式技能的转换结果。"""
+    from app.skills.installer import parse_claude_skill
+    try:
+        return parse_claude_skill(req.source_path)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))''',
+    },
+    {
+        "file": "app/skills/knowledge.py",
+        "summary": "知识库检索支持单文件形态（知识库.md，按「# 标题」分片）——GitHub 上传友好化的配套改造。",
+        "points": [
+            "新增 _BundleChunk 鸭子类型 + _split_bundle 分片器",
+            "knowledge_lookup：目录形态优先，缺省回退单文件形态",
+        ],
+        "before": '''    base = Path(skill_py_path).parent
+    kb = base / "知识库"
+    files = sorted(kb.glob("*.md")) if kb.is_dir() else []
+    if not files:
+        return "（该技能没有附带知识库）"''',
+        "after": '''    base = Path(skill_py_path).parent
+    kb = base / "知识库"
+    files = sorted(kb.glob("*.md")) if kb.is_dir() else []
+    if not files:
+        bundle = base / "知识库.md"
+        if bundle.is_file():
+            files = _split_bundle(bundle)
+    if not files:
+        return "（该技能没有附带知识库）"''',
+    },
+    {
+        "file": "tests/test_ash_transplant.py",
+        "summary": "心流测试时间无关化：夜间窗口判定随时间抖动，改为 mock 静默态快照。",
+        "points": ["patch app.life.state.GlobalCognitiveState 返回 silent_ticks=12 的快照"],
+        "before": '''        set_setting("thought_count", "0", self.db)
+        llm = FakeLLM(text="要是明天不下雨就好了。")
+        out = asyncio.run(maybe_generate_thought(0, self.db, llm=llm))
+        self.assertTrue(out["generated"])''',
+        "after": '''        set_setting("thought_count", "0", self.db)
+        llm = FakeLLM(text="要是明天不下雨就好了。")
+        # 时间无关化：直接给静默态快照，避免夜间窗口随时间抖动
+        with unittest.mock.patch("app.life.state.GlobalCognitiveState") as GS:
+            GS.return_value.snapshot.return_value = snap(silent_ticks=12)
+            out = asyncio.run(maybe_generate_thought(0, self.db, llm=llm))
+        self.assertTrue(out["generated"])''',
+    },
 ]
 
 # ============ 新建文件：从磁盘读全文 ============
@@ -510,15 +631,19 @@ NEW_FILES = [
     ("app/life/flowjournal.py", "D · 心流日记：should_think 触发判定（静默/夜间/困惑/孤独+限额）/ maybe_generate_thought / latest_unsurfaced / mark_surfaced。"),
     ("app/identity/persona_proposals.py", "E · 人格经验提案：纠正词聚类→LLM 起草→pending；confirm 写 voice/base.yaml（自动备份）+热重载；reject/rollback。铁律：只动 voice/base.yaml，identity 与原则永不触及。"),
     ("tests/test_ash_transplant.py", "A–E 测试 11 条：判定规则/权重分层/摘要滚动与截断/预筛与裁判/心流限额与浮出/提案确认回滚（临时人格目录）。"),
+    ("app/skills/installer.py", "Claude Code 技能格式安装器：校验 CC 格式 SKILL.md → 转成她的格式（triggers 兜底/disable-model-invocation→no_model/allowed-tools 仅在有 skill.py 时注册/幂等+审计）。"),
+    ("tests/test_skill_installer.py", "安装器测试 6 条：解析校验/安装转换/幂等/工具声明/no_model 标记。"),
+    ("scripts/bundle_knowledge.py", "知识库打包：每个技能的 知识库/*.md 合并为单文件 知识库.md（GitHub 上传友好，144→21 个文件）。"),
 ]
 
 
 def main():
     parts: list[str] = []
-    parts.append("# 方案 · ash 架构移植 A–E（原内容与修改对照）")
+    parts.append("# 方案 · 修改档案（原内容与修改对照）")
     parts.append("")
-    parts.append("> 日期：2026-08-29 ｜ 项目：mind-service（她） ｜ 全套测试 228 全绿")
+    parts.append("> 项目：mind-service（她） ｜ 全套测试 235 全绿")
     parts.append("> 格式（用户定）：原内容详细写出 → 修改后内容补充进去 → 明确指出修改点")
+    parts.append("> 批次：① ash 架构移植 A–E（2026-08-29） ② Claude Code 技能安装器 + 知识库单文件化（2026-09-04）")
     parts.append("> 不移植项 F（自定义注意力/本地GGUF/C++重写）：API 架构物理不可及，未改代码")
     parts.append("")
     parts.append("---")

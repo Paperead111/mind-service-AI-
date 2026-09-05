@@ -316,12 +316,15 @@ async def _chat_core(req: ChatRequest) -> tuple[str | None, dict]:
         from app.llm.cohesion_check import cohesion_check
         reply, issues = cohesion_check(reply, trail, discourse.current_topic())
         decision["cohesion_issues"] = issues
-        # C 人格保真：规则预筛 → LLM 裁判 → 必要时重生成一次（每轮至多一次）
+        # C 人格保真：规则预筛（含情绪表达一致性）→ LLM 裁判 → 必要时重生成一次
         if settings.fidelity_enabled and client.configured:
-            from app.llm.fidelity import (correction_note, judge_fidelity,
-                                          needs_regeneration, rule_screen)
-            if rule_screen(reply, persona):
+            from app.llm.fidelity import (correction_note, emotion_consistency_check,
+                                          judge_fidelity, needs_regeneration,
+                                          rule_screen)
+            tone_issues = emotion_consistency_check(reply, snap)
+            if rule_screen(reply, persona) or tone_issues:
                 judge = await judge_fidelity(reply, req.message, persona, client)
+                judge["tone_issues"] = tone_issues
                 decision["fidelity"] = judge
                 if needs_regeneration(judge):
                     try:
@@ -868,6 +871,39 @@ def skills_get(name: str):
 def skills_reload():
     from app.skills.loader import list_skills as _ls
     return {"skills": len(_ls(reload=True))}
+
+
+class SkillInstallReq(BaseModel):
+    source_path: str = Field(..., min_length=1)
+    triggers: list[str] = []
+    force: bool = False
+
+
+@router.post("/skills/install")
+def skills_install(req: SkillInstallReq):
+    """安装 Claude Code 格式技能（SKILL.md + 可选脚本）到她的技能库。"""
+    from app.skills.installer import install_skill, parse_claude_skill
+    try:
+        parsed = parse_claude_skill(req.source_path)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    result = install_skill(req.source_path, triggers=req.triggers,
+                           force=req.force, database=db)
+    if not result.get("ok"):
+        raise HTTPException(status_code=409, detail=result.get("error"))
+    result["parsed"] = {"name": parsed["name"], "allowed_tools": parsed["allowed_tools"],
+                        "no_model": parsed["no_model"]}
+    return result
+
+
+@router.post("/skills/validate")
+def skills_validate(req: SkillInstallReq):
+    """只校验不安装：预览 CC 格式技能的转换结果。"""
+    from app.skills.installer import parse_claude_skill
+    try:
+        return parse_claude_skill(req.source_path)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 # ---------- 常驻生命系统 API（R1/R16/R20′） ----------

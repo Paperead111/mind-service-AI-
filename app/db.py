@@ -416,6 +416,16 @@ class Database:
         cols = {r["name"] for r in conn.execute("PRAGMA table_info(decision_log)")}
         if "budget" not in cols:
             conn.execute("ALTER TABLE decision_log ADD COLUMN budget REAL")
+        # 情绪分离：感知用户情绪 vs 自身情绪状态（用户情绪只观察，不覆盖自身）
+        cols = {r["name"] for r in conn.execute("PRAGMA table_info(emotion_state)")}
+        if "user_perceived_valence" not in cols:
+            conn.execute(
+                "ALTER TABLE emotion_state ADD COLUMN user_perceived_valence"
+                " REAL NOT NULL DEFAULT 0.0")
+        if "user_perceived_arousal" not in cols:
+            conn.execute(
+                "ALTER TABLE emotion_state ADD COLUMN user_perceived_arousal"
+                " REAL NOT NULL DEFAULT 0.4")
 
     def _seed(self) -> None:
         """默认设置 + 触发器初始置信度 + R0 初始认知边（只插入一次）。"""

@@ -125,7 +125,8 @@ def full_snapshot(database: Database) -> dict:
 
     section("emotion", lambda: dict(conn.execute(
         "SELECT valence, arousal, dominance, joy, sadness, anger, fear, surprise,"
-        " disgust, anticipation, trust, dominant FROM emotion_state WHERE id=1"
+        " disgust, anticipation, trust, dominant, user_perceived_valence,"
+        " user_perceived_arousal FROM emotion_state WHERE id=1"
     ).fetchone() or {}))
     e = conn.execute("SELECT valence, arousal FROM emotion_state WHERE id=1").fetchone()
     out["valence"], out["arousal"] = (float(e["valence"]), float(e["arousal"])) if e else (0.0, 0.5)
